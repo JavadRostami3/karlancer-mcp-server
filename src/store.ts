@@ -1,0 +1,15 @@
+import { DatabaseSync } from 'node:sqlite';
+import { createCipheriv,createDecipheriv,randomBytes } from 'node:crypto';
+export class Store {
+ private db:DatabaseSync; private locks=new Map<string,Promise<void>>(); private depth=0;
+ constructor(path:string,private key:Buffer){if(key.length!==32)throw Error('Encryption key must be 32 bytes');this.db=new DatabaseSync(path);this.db.exec('PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS records(ns TEXT NOT NULL,k TEXT NOT NULL,v TEXT NOT NULL,expires INTEGER,PRIMARY KEY(ns,k));');}
+ get<T>(ns:string,key:string):T|undefined{const r=this.db.prepare('SELECT v,expires FROM records WHERE ns=? AND k=?').get(ns,key) as {v:string,expires:number|null}|undefined;if(!r)return;if(r.expires!==null&&r.expires<=Date.now()){this.delete(ns,key);return;}return JSON.parse(r.v);}
+ put(ns:string,key:string,value:any,ttlSeconds?:number):void{this.db.prepare('INSERT INTO records(ns,k,v,expires) VALUES(?,?,?,?) ON CONFLICT(ns,k) DO UPDATE SET v=excluded.v,expires=excluded.expires').run(ns,key,JSON.stringify(value),ttlSeconds===undefined?null:Date.now()+ttlSeconds*1000);}
+ delete(ns:string,key:string):void{this.db.prepare('DELETE FROM records WHERE ns=? AND k=?').run(ns,key);}
+ list<T>(ns:string):Array<{key:string,value:T}>{const rows=this.db.prepare('SELECT k FROM records WHERE ns=?').all(ns) as {k:string}[];return rows.flatMap(r=>{const value=this.get<T>(ns,r.k);return value===undefined?[]:[{key:r.k,value}];});}
+ transaction<T>(fn:()=>T):T{const sp='nested'+this.depth++;this.db.exec(this.depth===1?'BEGIN IMMEDIATE':'SAVEPOINT '+sp);try{const value=fn();this.db.exec(this.depth===1?'COMMIT':'RELEASE SAVEPOINT '+sp);return value;}catch(e){this.db.exec(this.depth===1?'ROLLBACK':'ROLLBACK TO SAVEPOINT '+sp);throw e;}finally{this.depth--;}}
+ async withLock<T>(key:string,fn:()=>Promise<T>):Promise<T>{const prior=this.locks.get(key)||Promise.resolve();let release!:()=>void;const next=new Promise<void>(r=>release=r);this.locks.set(key,next);await prior;try{return await fn();}finally{release();if(this.locks.get(key)===next)this.locks.delete(key);}}
+ seal(tenant:string,purpose:string,value:any):void{const iv=randomBytes(12);const c=createCipheriv('aes-256-gcm',this.key,iv);c.setAAD(Buffer.from(JSON.stringify([tenant,purpose])));const ciphertext=Buffer.concat([c.update(JSON.stringify(value),'utf8'),c.final()]);this.put('vault',JSON.stringify([tenant,purpose]),{iv:iv.toString('base64'),tag:c.getAuthTag().toString('base64'),ciphertext:ciphertext.toString('base64')});}
+ unseal<T>(tenant:string,purpose:string):T|undefined{const r=this.get<{iv:string,tag:string,ciphertext:string}>('vault',JSON.stringify([tenant,purpose]));if(!r)return;const c=createDecipheriv('aes-256-gcm',this.key,Buffer.from(r.iv,'base64'));c.setAAD(Buffer.from(JSON.stringify([tenant,purpose])));c.setAuthTag(Buffer.from(r.tag,'base64'));return JSON.parse(Buffer.concat([c.update(Buffer.from(r.ciphertext,'base64')),c.final()]).toString('utf8'));}
+ close(){this.db.close();}
+}

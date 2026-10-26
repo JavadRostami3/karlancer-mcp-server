@@ -1,0 +1,32 @@
+{
+  "name": "karlancer-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "node --env-file=.env --import tsx src/server.ts",
+    "test": "tsx --test tests/*.test.ts",
+    "start:local": "node --env-file=.env dist/server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "express": "^5.1.0",
+    "oidc-provider": "^9.5.0",
+    "zod": "^3.25.0",
+    "helmet": "^8.1.0",
+    "express-rate-limit": "^8.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "tsx": "^4.20.0",
+    "@types/node": "^24.0.0",
+    "@types/express": "^5.0.0",
+    "@types/oidc-provider": "^9.0.0"
+  },
+  "description": "Unofficial self-hosted multi-tenant MCP server for Karlancer"
+}

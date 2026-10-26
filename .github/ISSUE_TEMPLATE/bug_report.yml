@@ -1,0 +1,20 @@
+name: Bug report
+description: Reproducible issue without live account data
+title: "[Bug]: "
+body:
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce with synthetic data
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Commit SHA / version
