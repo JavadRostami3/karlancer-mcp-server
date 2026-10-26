@@ -231,7 +231,7 @@ export async function installIdentity(app: Express, options: { store: Store; bas
       stage = 'clientLookup';
       const client = await provider.Client.find(String(interaction.params.client_id));
       const redirectUri = interaction.params.redirect_uri;
-      if (typeof redirectUri !== 'string' || !client?.redirectUris.includes(redirectUri)) { res.status(400).send('Invalid authorization request'); return; }
+      if (typeof redirectUri !== 'string' || !client?.redirectUris?.includes(redirectUri)) { res.status(400).send('Invalid authorization request'); return; }
       let callbackOrigin: string;
       try {
         const callback = new URL(redirectUri);
@@ -317,7 +317,7 @@ export async function installIdentity(app: Express, options: { store: Store; bas
       const redirectUri = typeof req.query.redirect_uri === 'string' ? req.query.redirect_uri : undefined;
       if (clientId && redirectUri) {
         const client = await provider.Client.find(clientId);
-        if (client?.redirectUris.includes(redirectUri)) {
+        if (client?.redirectUris?.includes(redirectUri)) {
           const callback = new URL(redirectUri);
           if (googleCallbackOrigins.has(callback.origin)) {
             res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
@@ -356,7 +356,7 @@ export async function installIdentity(app: Express, options: { store: Store; bas
     if (ctx.status !== 303 || ctx.oidc?.route !== 'resume' || ctx.oidc.responseMode !== 'query') return;
     const redirectUri = ctx.oidc.params?.redirect_uri;
     const code = ctx.oidc.entities?.AuthorizationCode;
-    if (typeof redirectUri !== 'string' || !code || !ctx.oidc.client?.redirectUris.includes(redirectUri)) return;
+    if (typeof redirectUri !== 'string' || !code || !ctx.oidc.client?.redirectUris?.includes(redirectUri)) return;
     const location = ctx.response.get('Location');
     let registered: URL, target: URL;
     try { registered = new URL(redirectUri); target = new URL(location); } catch { return; }
