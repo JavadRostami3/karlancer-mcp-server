@@ -74,8 +74,8 @@ export const mcpProtocolTrace=(toolNames:readonly string[]):RequestHandler=>(req
     } catch {chunks=[];truncated=true;}
   };
   const write=res.write,end=res.end;
-  res.write=function(...args:any[]){capture(args[0],args[1]);return (write as any).apply(this,args);} as typeof res.write;
-  res.end=function(...args:any[]){capture(args[0],args[1]);return (end as any).apply(this,args);} as typeof res.end;
+  res.write=function(this: typeof res, ...args:any[]){capture(args[0],args[1]);return (write as any).apply(this,args);} as typeof res.write;
+  res.end=function(this: typeof res, ...args:any[]){capture(args[0],args[1]);return (end as any).apply(this,args);} as typeof res.end;
   let logged=false;
   const finish=()=>{
     if(logged)return;logged=true;
